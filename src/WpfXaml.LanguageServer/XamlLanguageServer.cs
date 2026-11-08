@@ -104,6 +104,7 @@ public sealed class XamlLanguageServer : IDisposable
                 CompletionProvider = new CompletionOptions(CompletionTriggers, ResolveProvider: true),
                 HoverProvider = true,
                 DefinitionProvider = true,
+                DocumentSymbolProvider = true,
             },
             new ServerInfo("wpf-xaml-ls", Version));
     }
@@ -288,6 +289,18 @@ public sealed class XamlLanguageServer : IDisposable
         }
 
         return locations.Select(l => LspConverters.ToLocation(document.Uri, l)).ToArray();
+    }
+
+    [JsonRpcMethod("textDocument/documentSymbol", UseSingleObjectParameterDeserialization = true)]
+    public DocumentSymbol[]? DocumentSymbol(DocumentSymbolParams parameters)
+    {
+        if (_documents.Get(parameters.TextDocument.Uri) is not { } document)
+        {
+            return null;
+        }
+
+        var lines = document.Syntax.Lines;
+        return DocumentSymbolService.GetSymbols(document.Syntax).Select(s => LspConverters.ToDocumentSymbol(lines, s)).ToArray();
     }
 
     // ------------------------------------------------------------------ diagnostics

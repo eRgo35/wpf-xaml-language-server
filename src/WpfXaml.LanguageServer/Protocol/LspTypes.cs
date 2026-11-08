@@ -52,6 +52,8 @@ public sealed record ServerCapabilities
     public bool HoverProvider { get; init; }
 
     public bool DefinitionProvider { get; init; }
+
+    public bool DocumentSymbolProvider { get; init; }
 }
 
 public sealed record TextDocumentSyncOptions(bool OpenClose, int Change, bool Save);
@@ -114,6 +116,16 @@ public sealed record TextEdit(Range Range, string NewText);
 public sealed record MarkupContent(string Kind, string Value)
 {
     public static MarkupContent Markdown(string value) => new("markdown", value);
+}
+
+public sealed record DocumentSymbolParams(TextDocumentIdentifier TextDocument);
+
+public sealed record DocumentSymbol(string Name, int Kind, Range Range, Range SelectionRange, DocumentSymbol[] Children);
+
+public static class SymbolKind
+{
+    public const int Class = 5;
+    public const int Property = 7;
 }
 
 public sealed record Hover(MarkupContent Contents, Range? Range);

@@ -71,4 +71,11 @@ internal static class LspConverters
         var uri = location.FilePath is null ? currentUri : DocumentUris.FromPath(location.FilePath);
         return new Location(uri, new Range(ToPosition(location.Start), ToPosition(location.End)));
     }
+
+    public static DocumentSymbol ToDocumentSymbol(LineIndex lines, XamlSymbol symbol) => new(
+        symbol.Name,
+        symbol.IsPropertyElement ? SymbolKind.Property : SymbolKind.Class,
+        ToRange(lines, symbol.Span),
+        ToRange(lines, symbol.NameSpan),
+        symbol.Children.Select(c => ToDocumentSymbol(lines, c)).ToArray());
 }

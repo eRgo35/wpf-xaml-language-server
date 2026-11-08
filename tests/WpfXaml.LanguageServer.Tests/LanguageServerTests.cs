@@ -34,6 +34,7 @@ public class LanguageServerTests
 
         Assert.True(result.Capabilities.HoverProvider);
         Assert.True(result.Capabilities.DefinitionProvider);
+        Assert.True(result.Capabilities.DocumentSymbolProvider);
         Assert.Equal(TextDocumentSyncKind.Incremental, result.Capabilities.TextDocumentSync!.Change);
         Assert.Contains("<", result.Capabilities.CompletionProvider!.TriggerCharacters);
         ((IDisposable)server).Dispose();
@@ -109,5 +110,21 @@ public class LanguageServerTests
         var hover = await client.RequestAsync<JsonElement>("textDocument/hover", TestClient.Position(Uri, 2, 0));
 
         Assert.Equal(JsonValueKind.Null, hover.ValueKind);
+    }
+
+    [Fact]
+    public async Task DocumentSymbol_ReturnsHierarchy()
+    {
+        await using var client = await StartAsync();
+        await client.OpenAsync(Uri, Document);
+
+        var symbols = await client.RequestAsync<JsonElement>("textDocument/documentSymbol", new { textDocument = new { uri = Uri } });
+
+        var root = Assert.Single(symbols.EnumerateArray());
+        Assert.Equal("Window", root.GetProperty("name").GetString());
+        Assert.Equal(5, root.GetProperty("kind").GetInt32());
+        var grid = Assert.Single(root.GetProperty("children").EnumerateArray());
+        Assert.Equal("Grid", grid.GetProperty("name").GetString());
+        Assert.Equal(2, grid.GetProperty("selectionRange").GetProperty("start").GetProperty("line").GetInt32());
     }
 }
