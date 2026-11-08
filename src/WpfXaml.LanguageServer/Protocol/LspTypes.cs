@@ -58,6 +58,8 @@ public sealed record ServerCapabilities
     public bool ReferencesProvider { get; init; }
 
     public RenameOptions? RenameProvider { get; init; }
+
+    public bool DocumentFormattingProvider { get; init; }
 }
 
 public sealed record RenameOptions(bool PrepareProvider);
@@ -133,6 +135,10 @@ public sealed record RenameParams(TextDocumentIdentifier TextDocument, Position 
     : TextDocumentPositionParams(TextDocument, Position);
 
 public sealed record WorkspaceEdit(Dictionary<string, TextEdit[]> Changes);
+
+public sealed record FormattingOptions(int TabSize, bool InsertSpaces);
+
+public sealed record DocumentFormattingParams(TextDocumentIdentifier TextDocument, FormattingOptions Options);
 
 public sealed record DocumentSymbolParams(TextDocumentIdentifier TextDocument);
 

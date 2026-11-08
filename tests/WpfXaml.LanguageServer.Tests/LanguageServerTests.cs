@@ -37,6 +37,7 @@ public class LanguageServerTests
         Assert.True(result.Capabilities.DocumentSymbolProvider);
         Assert.True(result.Capabilities.ReferencesProvider);
         Assert.True(result.Capabilities.RenameProvider!.PrepareProvider);
+        Assert.True(result.Capabilities.DocumentFormattingProvider);
         Assert.Equal(TextDocumentSyncKind.Incremental, result.Capabilities.TextDocumentSync!.Change);
         Assert.Contains("<", result.Capabilities.CompletionProvider!.TriggerCharacters);
         ((IDisposable)server).Dispose();
@@ -174,5 +175,19 @@ public class LanguageServerTests
 
         await Assert.ThrowsAsync<StreamJsonRpc.RemoteInvocationException>(() =>
             client.RequestAsync<JsonElement>("textDocument/rename", new { textDocument = new { uri = Uri }, position, newName = "not valid" }));
+    }
+
+    [Fact]
+    public async Task Formatting_ReturnsIndentEdits()
+    {
+        await using var client = await StartAsync();
+        await client.OpenAsync(Uri, "<Grid>\n<Button />\n</Grid>");
+
+        var edits = await client.RequestAsync<TextEdit[]>("textDocument/formatting",
+            new { textDocument = new { uri = Uri }, options = new { tabSize = 4, insertSpaces = true } });
+
+        var edit = Assert.Single(edits);
+        Assert.Equal(new Protocol.Range(new Position(1, 0), new Position(1, 0)), edit.Range);
+        Assert.Equal("    ", edit.NewText);
     }
 }

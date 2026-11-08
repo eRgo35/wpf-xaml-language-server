@@ -108,6 +108,7 @@ public sealed class XamlLanguageServer : IDisposable
                 DocumentSymbolProvider = true,
                 ReferencesProvider = true,
                 RenameProvider = new RenameOptions(PrepareProvider: true),
+                DocumentFormattingProvider = true,
             },
             new ServerInfo("wpf-xaml-ls", Version));
     }
@@ -369,6 +370,20 @@ public sealed class XamlLanguageServer : IDisposable
         }
 
         return models;
+    }
+
+    [JsonRpcMethod("textDocument/formatting", UseSingleObjectParameterDeserialization = true)]
+    public TextEdit[]? Formatting(DocumentFormattingParams parameters)
+    {
+        if (_documents.Get(parameters.TextDocument.Uri) is not { } document)
+        {
+            return null;
+        }
+
+        var lines = document.Syntax.Lines;
+        return XamlFormatter.Format(document.Syntax, parameters.Options.TabSize, parameters.Options.InsertSpaces)
+            .Select(e => new TextEdit(LspConverters.ToRange(lines, e.Span), e.NewText))
+            .ToArray();
     }
 
     [JsonRpcMethod("textDocument/documentSymbol", UseSingleObjectParameterDeserialization = true)]
