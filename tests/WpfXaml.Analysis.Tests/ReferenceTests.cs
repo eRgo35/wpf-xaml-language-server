@@ -132,6 +132,25 @@ public class ReferenceTests
     }
 
     [Fact]
+    public void References_TemplateUseFallsBackToWindowName()
+    {
+        // WPF looks up a name the template doesn't declare in the templated parent's namescope.
+        var locations = Find("""
+            <StackPanel x:Name="ro|ot">
+              <ItemsControl>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Button Command="{Binding DataContext.Delete, ElementName=root}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+            """);
+
+        Assert.Equal([1, 5], locations.Select(l => l.Start.Line).Order());
+    }
+
+    [Fact]
     public void References_TypeAcrossDocuments()
     {
         const string otherPath = "C:/TestApp/OtherWindow.xaml";

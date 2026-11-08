@@ -35,7 +35,7 @@ public static class ReferenceService
             var locations = FindNameOccurrences(model, name, includeDeclaration).Select(o => Location(model, o.Span, current: true));
 
             // Only the document's own namescope gets fields in the code-behind; template names don't.
-            return NameScope(name.Element) is null
+            return ResolvedNameScope(model, name) is null
                 ? locations.Concat(CodeBehindNames.FindUses(model, name.Name)).ToList()
                 : locations.ToList();
         }
@@ -64,9 +64,34 @@ public static class ReferenceService
     /// <summary>Declarations and uses of <paramref name="target"/> in its namescope, in this document.</summary>
     internal static IEnumerable<NameOccurrence> FindNameOccurrences(XamlSemanticModel model, XamlNameTarget target, bool includeDeclaration)
     {
-        var scope = NameScope(target.Element);
-        return NameOccurrences(model)
-            .Where(o => o.Name == target.Name && NameScope(o.Element) == scope && (includeDeclaration || !o.IsDeclaration));
+        var (scope, occurrences) = ScopedOccurrences(model, target.Name, target.Span);
+        return occurrences.Where(o => o.Scope == scope && (includeDeclaration || !o.Occurrence.IsDeclaration)).Select(o => o.Occurrence);
+    }
+
+    /// <summary>The namescope <paramref name="target"/> resolves to: null for the document's own namescope.</summary>
+    internal static XamlElement? ResolvedNameScope(XamlSemanticModel model, XamlNameTarget target) =>
+        ScopedOccurrences(model, target.Name, target.Span).Scope;
+
+    /// <summary>True when <paramref name="name"/> is already declared in <paramref name="scope"/>.</summary>
+    internal static bool IsNameDeclared(XamlSemanticModel model, string name, XamlElement? scope) =>
+        NameOccurrences(model).Any(o => o.IsDeclaration && o.Name == name && NameScope(o.Element) == scope);
+
+    /// <summary>
+    /// Every occurrence of <paramref name="name"/> with the namescope it resolves to, and the scope of the one at
+    /// <paramref name="span"/>. A use inside a template that doesn't declare the name resolves outward, as in WPF.
+    /// </summary>
+    private static (XamlElement? Scope, List<(NameOccurrence Occurrence, XamlElement? Scope)> Occurrences) ScopedOccurrences(
+        XamlSemanticModel model, string name, TextSpan span)
+    {
+        var occurrences = NameOccurrences(model).Where(o => o.Name == name).ToList();
+        var declaringScopes = occurrences.Where(o => o.IsDeclaration).Select(o => NameScope(o.Element)).ToHashSet();
+        var scoped = occurrences
+            .Select(o => (o, o.IsDeclaration
+                ? NameScope(o.Element)
+                : o.Element.Ancestors().FirstOrDefault(a => TemplateElements.Contains(a.Name.LocalName) && declaringScopes.Contains(a))))
+            .ToList();
+        var scope = scoped.FirstOrDefault(o => o.o.Span == span).Item2;
+        return (scope, scoped);
     }
 
     /// <summary>The template that starts the element's namescope, or null for the document's own namescope.</summary>

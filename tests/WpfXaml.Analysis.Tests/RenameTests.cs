@@ -47,6 +47,22 @@ public class RenameTests
         Assert.All(result.Edits, e => Assert.Equal(2, e.End.Character - e.Start.Character));
     }
 
+    [Fact]
+    public void Rename_ToExistingNameRejected()
+    {
+        var (model, offset, _) = At("""
+            <StackPanel>
+              <CheckBox x:Name="o|k" />
+              <Button x:Name="other" />
+            </StackPanel>
+            """);
+
+        var result = RenameService.Rename(model, offset, "other", []);
+
+        Assert.Empty(result.Edits);
+        Assert.Equal("'other' is already used in this scope.", result.Error);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("a b")]

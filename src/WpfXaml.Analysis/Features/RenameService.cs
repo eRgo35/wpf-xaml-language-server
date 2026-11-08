@@ -28,6 +28,12 @@ public static class RenameService
             return Fail(error);
         }
 
+        if (target.Kind == XamlNameKind.ElementName && newName != target.Name
+            && ReferenceService.IsNameDeclared(model, newName, ReferenceService.ResolvedNameScope(model, target)))
+        {
+            return Fail($"'{newName}' is already used in this scope.");
+        }
+
         var edits = ReferenceService.FindReferences(model, offset, otherDocuments, includeDeclaration: true)
             .Select(l => new XamlTextEdit(l.FilePath, l.Start, l.End, newName))
             .ToList();
