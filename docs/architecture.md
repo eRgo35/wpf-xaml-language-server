@@ -186,7 +186,6 @@ example `IsChecked` on a MahApps 2 `ToggleSwitch`, which is `IsOn` now), and sta
   - converters and value-type checks;
   - binding to a `DataTemplateSelector`'s templates.
 - **Code actions.** Generate an event handler, add a missing `xmlns`.
-- **Rename and find references** for `x:Name` and resource keys.
 - **Generated code.** Feed the `x:Name` fields and `InitializeComponent` (normally in `.g.cs`) to the C# side.
-- **Formatting, document symbols, folding.**
+- **Range formatting, folding.**
 - **Clients.** A VS Code extension and an MCP wrapper.

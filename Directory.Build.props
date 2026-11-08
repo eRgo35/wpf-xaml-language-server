@@ -14,7 +14,7 @@
     <PackageProjectUrl>https://github.com/Zurisen/wpf-xaml-language-server</PackageProjectUrl>
     <RepositoryUrl>https://github.com/Zurisen/wpf-xaml-language-server.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <Version>0.1.0-alpha</Version>
+    <Version>0.2.0</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">

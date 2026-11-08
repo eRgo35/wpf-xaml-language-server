@@ -5,6 +5,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - first release of the eRgo35 fork
+
+### Added
+
+- **Find references** (`textDocument/references`): resource keys, `x:Name` (with `ElementName`, `TargetName`,
+  `SourceName` and `x:Reference` uses, per namescope, and uses in the `x:Class` code-behind), types and members
+  across the solution's XAML.
+- **Rename** (`textDocument/rename`, `prepareRename`) for `x:Key` and `x:Name`, including the code-behind.
+- **Formatting** (`textDocument/formatting`): indentation and attribute spacing only.
+- **Document symbols** (`textDocument/documentSymbol`): the element tree.
+- A release workflow that attaches a framework-dependent `wpf-xaml-ls-<version>.zip` to each GitHub release.
+
+### Fixed
+
+- The WPF targeting pack wasn't found when `DOTNET_CLI_HOME` moves the NuGet cache, so completion was empty on such
+  machines (common on Linux).
+- A crash when walking up from a relative document path to look for a project file.
+
+### Changed
+
+- StreamJsonRpc 2.26.150 and Nerdbank.Streams 2.14.411. This also fixes the MessagePack advisory
+  GHSA-qhrr-8q5h-9q3h that failed the default build.
+
 ## [0.1.0-alpha] - first public version
 
 ### Added

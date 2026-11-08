@@ -1,13 +1,17 @@
 # wpf-xaml-ls
 
-[![CI](https://github.com/Zurisen/wpf-xaml-language-server/actions/workflows/ci.yml/badge.svg)](https://github.com/Zurisen/wpf-xaml-language-server/actions/workflows/ci.yml)
+[![CI](https://github.com/eRgo35/wpf-xaml-language-server/actions/workflows/ci.yml/badge.svg)](https://github.com/eRgo35/wpf-xaml-language-server/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 An open-source, editor-agnostic language server (LSP) for **WPF XAML**. It understands WPF types, properties,
 attached properties, events, markup extensions, resources, bindings and your own project's code. Use it in Neovim,
 VS Code, Zed, Helix or Emacs, or from CI and AI agents.
 
-> **Status: early alpha (0.1).** It works on real solutions (see below), but expect rough edges, and
+> **This is a fork** of [Zurisen/wpf-xaml-language-server](https://github.com/Zurisen/wpf-xaml-language-server) that
+> adds Linux fixes, find references, rename, formatting and document symbols, and publishes release zips for the Zed
+> extension. See the [changelog](CHANGELOG.md).
+
+> **Status: early alpha (0.2).** It works on real solutions (see below), but expect rough edges, and
 > report them. See [docs/problem-statement.md](docs/problem-statement.md) for the motivation and
 > [docs/architecture.md](docs/architecture.md) for the design and roadmap.
 
@@ -55,6 +59,13 @@ VS Code, Zed, Helix or Emacs, or from CI and AI agents.
   directives, resource keys and binding paths.
 - **Go to definition:** from XAML into C# (project types, properties, event handlers, `x:Class`, `x:Static`
   members, binding paths) and from `{StaticResource}` to its `x:Key`, in whichever file defines it.
+- **Find references:** resource keys (following the same scope rules as lookup), `x:Name` with its `ElementName`,
+  `TargetName`, `SourceName` and `x:Reference` uses and its uses in the code-behind, and types and properties
+  across the solution's XAML.
+- **Rename:** `x:Key` and `x:Name` with all of those references, including the code-behind.
+- **Formatting:** re-indents elements, comments and attributes and collapses the spacing between attributes. Line
+  breaks, attribute order, text, comments, attribute values and `xml:space="preserve"` content stay as written.
+- **Document symbols:** the element tree as an outline, labelled with `x:Name` or `x:Key`.
 - **Project-aware:** loads your `.sln`, `.slnx` or `.csproj` with MSBuild, so it sees project types even before
   they are built. It needs no WPF runtime: it reads reference assemblies.
   - It knows exactly which XAML files each project builds. Files excluded with `<Page Remove>` aren't reported.
@@ -75,18 +86,23 @@ calibrated against a 117-project commercial WPF solution with 719 XAML files. On
 
 - **Requirements:** a .NET 10 SDK, and projects restored before the server can load them (`dotnet restore`, or a
   build).
-- **Windows-first:** analysis runs anywhere, but loading `net*-windows` projects is tested on Windows only.
+- **Linux and macOS:** set `<EnableWindowsTargeting>true</EnableWindowsTargeting>` in your WPF project so it
+  restores and builds there (you still need Windows to run it). The server finds the WPF targeting pack in the
+  NuGet cache, including under `DOTNET_CLI_HOME`.
 - **Not checked yet:**
   - non-string resource keys (`{x:Type …}` implicit styles, `ComponentResourceKey`) and theme dictionaries;
   - bindings written as elements (`<Binding/>` inside `MultiBinding`), converters and value types;
   - .NET Framework (non-SDK) projects, which fall back to framework types.
-- **Missing features:** code actions, rename, find references, formatting, document symbols and folding. See the
+- **Missing features:** code actions, range formatting and folding. See the
   [roadmap](docs/architecture.md#known-gaps--next-steps).
 
 ## Install
 
-Requires the .NET 10 SDK, or the .NET 10 runtime plus the SDK your projects use. Until the first NuGet release,
-build and install from source:
+Requires the .NET 10 SDK, or the .NET 10 runtime plus the SDK your projects use.
+
+Each [release](https://github.com/eRgo35/wpf-xaml-language-server/releases) has a `wpf-xaml-ls-<version>.zip`: unzip
+it and run `dotnet wpf-xaml-ls.dll --stdio`. The Zed extension downloads it for you. Or build and install from
+source:
 
 ```bash
 dotnet pack src/WpfXaml.LanguageServer -c Release -o artifacts
