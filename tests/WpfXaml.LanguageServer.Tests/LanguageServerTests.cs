@@ -36,6 +36,7 @@ public class LanguageServerTests
         Assert.True(result.Capabilities.DefinitionProvider);
         Assert.True(result.Capabilities.DocumentSymbolProvider);
         Assert.True(result.Capabilities.ReferencesProvider);
+        Assert.True(result.Capabilities.RenameProvider!.PrepareProvider);
         Assert.Equal(TextDocumentSyncKind.Incremental, result.Capabilities.TextDocumentSync!.Change);
         Assert.Contains("<", result.Capabilities.CompletionProvider!.TriggerCharacters);
         ((IDisposable)server).Dispose();
@@ -154,5 +155,24 @@ public class LanguageServerTests
 
         var withoutDeclaration = await client.RequestAsync<Location[]>("textDocument/references", request with { context = new { includeDeclaration = false } });
         Assert.Equal(4, Assert.Single(withoutDeclaration).Range.Start.Line);
+    }
+
+    [Fact]
+    public async Task Rename_ReturnsWorkspaceEdit()
+    {
+        await using var client = await StartAsync();
+        await client.OpenAsync(Uri, NamedDocument);
+        var position = new { line = 3, character = 24 };
+
+        var range = await client.RequestAsync<Protocol.Range>("textDocument/prepareRename", new { textDocument = new { uri = Uri }, position });
+        Assert.Equal(new Protocol.Range(new Position(3, 22), new Position(3, 24)), range);
+
+        var edit = await client.RequestAsync<JsonElement>("textDocument/rename", new { textDocument = new { uri = Uri }, position, newName = "accept" });
+        var edits = edit.GetProperty("changes").GetProperty(Uri).EnumerateArray().ToList();
+        Assert.Equal(2, edits.Count);
+        Assert.All(edits, e => Assert.Equal("accept", e.GetProperty("newText").GetString()));
+
+        await Assert.ThrowsAsync<StreamJsonRpc.RemoteInvocationException>(() =>
+            client.RequestAsync<JsonElement>("textDocument/rename", new { textDocument = new { uri = Uri }, position, newName = "not valid" }));
     }
 }

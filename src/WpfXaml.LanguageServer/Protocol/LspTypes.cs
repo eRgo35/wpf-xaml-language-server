@@ -56,7 +56,11 @@ public sealed record ServerCapabilities
     public bool DocumentSymbolProvider { get; init; }
 
     public bool ReferencesProvider { get; init; }
+
+    public RenameOptions? RenameProvider { get; init; }
 }
+
+public sealed record RenameOptions(bool PrepareProvider);
 
 public sealed record TextDocumentSyncOptions(bool OpenClose, int Change, bool Save);
 
@@ -124,6 +128,11 @@ public sealed record ReferenceContext(bool IncludeDeclaration);
 
 public sealed record ReferenceParams(TextDocumentIdentifier TextDocument, Position Position, ReferenceContext? Context)
     : TextDocumentPositionParams(TextDocument, Position);
+
+public sealed record RenameParams(TextDocumentIdentifier TextDocument, Position Position, string NewName)
+    : TextDocumentPositionParams(TextDocument, Position);
+
+public sealed record WorkspaceEdit(Dictionary<string, TextEdit[]> Changes);
 
 public sealed record DocumentSymbolParams(TextDocumentIdentifier TextDocument);
 

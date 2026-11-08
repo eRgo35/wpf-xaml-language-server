@@ -107,6 +107,7 @@ public sealed class XamlLanguageServer : IDisposable
                 DefinitionProvider = true,
                 DocumentSymbolProvider = true,
                 ReferencesProvider = true,
+                RenameProvider = new RenameOptions(PrepareProvider: true),
             },
             new ServerInfo("wpf-xaml-ls", Version));
     }
@@ -308,6 +309,47 @@ public sealed class XamlLanguageServer : IDisposable
         var locations = ReferenceService.FindReferences(model, offset, others, parameters.Context?.IncludeDeclaration ?? true);
         return locations.Select(l => LspConverters.ToLocation(document.Uri, l)).ToArray();
     }
+
+    [JsonRpcMethod("textDocument/prepareRename", UseSingleObjectParameterDeserialization = true)]
+    public async Task<Protocol.Range?> PrepareRenameAsync(TextDocumentPositionParams parameters, CancellationToken cancellationToken)
+    {
+        if (_documents.Get(parameters.TextDocument.Uri) is not { } document
+            || await _projects.GetTypeSystemAsync(document.Path, cancellationToken).ConfigureAwait(false) is not { } types)
+        {
+            return null;
+        }
+
+        var lines = document.Syntax.Lines;
+        var span = RenameService.PrepareRename(document.GetSemanticModel(types, _resources), LspConverters.ToOffset(lines, parameters.Position));
+        return span is { } s ? LspConverters.ToRange(lines, s) : null;
+    }
+
+    [JsonRpcMethod("textDocument/rename", UseSingleObjectParameterDeserialization = true)]
+    public async Task<WorkspaceEdit?> RenameAsync(RenameParams parameters, CancellationToken cancellationToken)
+    {
+        if (_documents.Get(parameters.TextDocument.Uri) is not { } document
+            || await _projects.GetTypeSystemAsync(document.Path, cancellationToken).ConfigureAwait(false) is not { } types)
+        {
+            return null;
+        }
+
+        var model = document.GetSemanticModel(types, _resources);
+        var others = await GetOtherDocumentModelsAsync(document, cancellationToken).ConfigureAwait(false);
+        var offset = LspConverters.ToOffset(document.Syntax.Lines, parameters.Position);
+        var result = RenameService.Rename(model, offset, parameters.NewName, others);
+        if (result.Error is { } error)
+        {
+            throw new LocalRpcException(error) { ErrorCode = RequestFailed };
+        }
+
+        var changes = result.Edits
+            .GroupBy(e => e.FilePath is null ? document.Uri : DocumentUris.FromPath(e.FilePath))
+            .ToDictionary(g => g.Key, g => g.Select(e => new TextEdit(new Protocol.Range(LspConverters.ToPosition(e.Start), LspConverters.ToPosition(e.End)), e.NewText)).ToArray());
+        return new WorkspaceEdit(changes);
+    }
+
+    /// <summary>LSP error code for a request that was valid but couldn't be carried out.</summary>
+    private const int RequestFailed = -32803;
 
     /// <summary>Semantic models for every other XAML file of the loaded projects (open buffers before disk).</summary>
     private async Task<IReadOnlyList<XamlSemanticModel>> GetOtherDocumentModelsAsync(DocumentSnapshot current, CancellationToken cancellationToken)
