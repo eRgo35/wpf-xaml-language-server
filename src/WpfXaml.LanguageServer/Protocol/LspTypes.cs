@@ -54,6 +54,8 @@ public sealed record ServerCapabilities
     public bool DefinitionProvider { get; init; }
 
     public bool DocumentSymbolProvider { get; init; }
+
+    public bool ReferencesProvider { get; init; }
 }
 
 public sealed record TextDocumentSyncOptions(bool OpenClose, int Change, bool Save);
@@ -117,6 +119,11 @@ public sealed record MarkupContent(string Kind, string Value)
 {
     public static MarkupContent Markdown(string value) => new("markdown", value);
 }
+
+public sealed record ReferenceContext(bool IncludeDeclaration);
+
+public sealed record ReferenceParams(TextDocumentIdentifier TextDocument, Position Position, ReferenceContext? Context)
+    : TextDocumentPositionParams(TextDocument, Position);
 
 public sealed record DocumentSymbolParams(TextDocumentIdentifier TextDocument);
 

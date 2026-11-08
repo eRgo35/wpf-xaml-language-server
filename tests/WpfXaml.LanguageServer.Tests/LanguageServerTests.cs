@@ -35,6 +35,7 @@ public class LanguageServerTests
         Assert.True(result.Capabilities.HoverProvider);
         Assert.True(result.Capabilities.DefinitionProvider);
         Assert.True(result.Capabilities.DocumentSymbolProvider);
+        Assert.True(result.Capabilities.ReferencesProvider);
         Assert.Equal(TextDocumentSyncKind.Incremental, result.Capabilities.TextDocumentSync!.Change);
         Assert.Contains("<", result.Capabilities.CompletionProvider!.TriggerCharacters);
         ((IDisposable)server).Dispose();
@@ -126,5 +127,32 @@ public class LanguageServerTests
         var grid = Assert.Single(root.GetProperty("children").EnumerateArray());
         Assert.Equal("Grid", grid.GetProperty("name").GetString());
         Assert.Equal(2, grid.GetProperty("selectionRange").GetProperty("start").GetProperty("line").GetInt32());
+    }
+
+    private const string NamedDocument = """
+        <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+          <StackPanel>
+            <CheckBox x:Name="ok" />
+            <Button IsEnabled="{Binding IsChecked, ElementName=ok}" />
+          </StackPanel>
+        </Window>
+        """;
+
+    [Fact]
+    public async Task References_ReturnsLocations()
+    {
+        await using var client = await StartAsync();
+        await client.OpenAsync(Uri, NamedDocument);
+
+        // Caret on `ok` in x:Name="ok" (line 3).
+        var request = new { textDocument = new { uri = Uri }, position = new { line = 3, character = 24 }, context = new { includeDeclaration = true } };
+        var locations = await client.RequestAsync<Location[]>("textDocument/references", request);
+
+        Assert.Equal([3, 4], locations.Select(l => l.Range.Start.Line).Order());
+        Assert.All(locations, l => Assert.Equal(Uri, l.Uri));
+
+        var withoutDeclaration = await client.RequestAsync<Location[]>("textDocument/references", request with { context = new { includeDeclaration = false } });
+        Assert.Equal(4, Assert.Single(withoutDeclaration).Range.Start.Line);
     }
 }

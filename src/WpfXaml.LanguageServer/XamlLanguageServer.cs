@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.Threading;
 using StreamJsonRpc;
 using WpfXaml.Analysis.Features;
 using WpfXaml.Analysis.Features.Completion;
+using WpfXaml.Analysis.Semantics;
 using WpfXaml.Language;
 using WpfXaml.LanguageServer.Protocol;
 using WpfXaml.LanguageServer.Workspace;
@@ -105,6 +106,7 @@ public sealed class XamlLanguageServer : IDisposable
                 HoverProvider = true,
                 DefinitionProvider = true,
                 DocumentSymbolProvider = true,
+                ReferencesProvider = true,
             },
             new ServerInfo("wpf-xaml-ls", Version));
     }
@@ -289,6 +291,42 @@ public sealed class XamlLanguageServer : IDisposable
         }
 
         return locations.Select(l => LspConverters.ToLocation(document.Uri, l)).ToArray();
+    }
+
+    [JsonRpcMethod("textDocument/references", UseSingleObjectParameterDeserialization = true)]
+    public async Task<Location[]?> ReferencesAsync(ReferenceParams parameters, CancellationToken cancellationToken)
+    {
+        if (_documents.Get(parameters.TextDocument.Uri) is not { } document
+            || await _projects.GetTypeSystemAsync(document.Path, cancellationToken).ConfigureAwait(false) is not { } types)
+        {
+            return null;
+        }
+
+        var model = document.GetSemanticModel(types, _resources);
+        var others = await GetOtherDocumentModelsAsync(document, cancellationToken).ConfigureAwait(false);
+        var offset = LspConverters.ToOffset(document.Syntax.Lines, parameters.Position);
+        var locations = ReferenceService.FindReferences(model, offset, others, parameters.Context?.IncludeDeclaration ?? true);
+        return locations.Select(l => LspConverters.ToLocation(document.Uri, l)).ToArray();
+    }
+
+    /// <summary>Semantic models for every other XAML file of the loaded projects (open buffers before disk).</summary>
+    private async Task<IReadOnlyList<XamlSemanticModel>> GetOtherDocumentModelsAsync(DocumentSnapshot current, CancellationToken cancellationToken)
+    {
+        var models = new List<XamlSemanticModel>();
+        foreach (var path in _projects.GetAllXamlFiles())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if ((current.Path is not null && DocumentUris.PathComparer.Equals(path, current.Path))
+                || _resources.GetDocument(path) is not { } syntax
+                || await _projects.GetTypeSystemAsync(path, cancellationToken).ConfigureAwait(false) is not { } types)
+            {
+                continue;
+            }
+
+            models.Add(new XamlSemanticModel(syntax, types, _resources.CreateContext(path)));
+        }
+
+        return models;
     }
 
     [JsonRpcMethod("textDocument/documentSymbol", UseSingleObjectParameterDeserialization = true)]
