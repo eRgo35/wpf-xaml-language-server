@@ -105,6 +105,21 @@ public static class FrameworkReferences
         return null;
     }
 
+    /// <summary>
+    /// The NuGet global packages folder: <c>NUGET_PACKAGES</c>, else <c>$DOTNET_CLI_HOME/.nuget/packages</c>
+    /// (the dotnet CLI moves the home folder there), else <c>~/.nuget/packages</c>.
+    /// </summary>
+    internal static string GetNuGetPackagesRoot(Func<string, string?> getEnvironmentVariable, string userProfile)
+    {
+        if (getEnvironmentVariable("NUGET_PACKAGES") is { Length: > 0 } packages)
+        {
+            return packages;
+        }
+
+        var home = getEnvironmentVariable("DOTNET_CLI_HOME") is { Length: > 0 } cliHome ? cliHome : userProfile;
+        return Path.Combine(home, ".nuget", "packages");
+    }
+
     private static (int Major, string RefDir)? FindPack(string packName, int? major, string? dotnetRoot)
     {
         var roots = new List<string>();
@@ -113,8 +128,7 @@ public static class FrameworkReferences
             roots.Add(Path.Combine(dotnetRoot, "packs", packName));
         }
 
-        var nugetRoot = Environment.GetEnvironmentVariable("NUGET_PACKAGES")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
+        var nugetRoot = GetNuGetPackagesRoot(Environment.GetEnvironmentVariable, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         roots.Add(Path.Combine(nugetRoot, packName.ToLowerInvariant()));
 
         var found = new List<(Version Version, int Major, string RefDir)>();

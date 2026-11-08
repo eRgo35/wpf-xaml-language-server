@@ -121,7 +121,7 @@ public sealed class ProjectSystem : IDisposable
 
     /// <summary>The project file in the nearest directory at or above the file (what owns it under SDK globbing).</summary>
     public static string? FindNearestProjectFile(string filePath) =>
-        Path.GetDirectoryName(filePath) is { } directory ? NearestProjectInDirectory(directory) : null;
+        Path.GetDirectoryName(filePath) is { Length: > 0 } directory ? NearestProjectInDirectory(directory) : null;
 
     private static string? NearestProjectInDirectory(string directory) =>
         NearestProjectCache.GetOrAdd(directory, static d =>
@@ -132,7 +132,8 @@ public sealed class ProjectSystem : IDisposable
                 return projects.Order(StringComparer.OrdinalIgnoreCase).First();
             }
 
-            return Path.GetDirectoryName(d) is { } parent ? NearestProjectInDirectory(parent) : null;
+            // Relative paths (e.g. a Windows "C:/x" URI read on Linux) end in "", which isn't a directory.
+            return Path.GetDirectoryName(d) is { Length: > 0 } parent ? NearestProjectInDirectory(parent) : null;
         });
 
     public void StartLoading(IReadOnlyList<string> targets)
