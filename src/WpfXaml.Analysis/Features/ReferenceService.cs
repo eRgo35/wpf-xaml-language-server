@@ -27,9 +27,17 @@ public static class ReferenceService
     {
         if (FindNameTarget(model, offset) is { } name)
         {
-            return name.Kind == XamlNameKind.ElementName
-                ? FindNameOccurrences(model, name, includeDeclaration).Select(o => Location(model, o.Span, current: true)).ToList()
-                : FindResourceOccurrences(model, name, otherDocuments, includeDeclaration);
+            if (name.Kind == XamlNameKind.ResourceKey)
+            {
+                return FindResourceOccurrences(model, name, otherDocuments, includeDeclaration);
+            }
+
+            var locations = FindNameOccurrences(model, name, includeDeclaration).Select(o => Location(model, o.Span, current: true));
+
+            // Only the document's own namescope gets fields in the code-behind; template names don't.
+            return NameScope(name.Element) is null
+                ? locations.Concat(CodeBehindNames.FindUses(model, name.Name)).ToList()
+                : locations.ToList();
         }
 
         return XamlTargetResolver.Resolve(model, offset)?.Symbol is { } symbol
